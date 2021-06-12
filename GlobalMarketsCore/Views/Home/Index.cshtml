@@ -1,0 +1,41 @@
+﻿@model GlobalMarketsCore.Models.HomePageModel
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+<link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.css" />
+
+<h2>Home</h2>
+
+<span id="MessageDisplay"></span>
+
+@section Scripts{
+
+    <script src="~/lib/signalr/jquery.signalR.min.js"></script>
+    <script src="Signalr/hubs"></script>
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <script type="text/javascript">
+
+    $(document).ready(function () {
+
+        var myHubProxy = $.connection.hub.createHubProxy("MessageHub");
+
+        myHubProxy.on('clientListener', function (msg) { 
+            //toastr.options.fadeOut = 10000;
+            toastr.options.extendedTimeOut = 0; // How long the toast will display after a user hovers over it
+            toastr.options.closeButton = true;
+            toastr.success(msg);
+
+        });
+
+        $.connection.hub.start().done(function () {
+            myHubProxy.invoke('myFunction');
+        });
+
+    });
+
+    </script>
+}
+
+
+

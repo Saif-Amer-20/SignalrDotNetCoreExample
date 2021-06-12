@@ -1,0 +1,79 @@
+﻿@model IEnumerable<GlobalMarketsCore.DataModel.Client>
+
+@{
+    ViewData["Title"] = "Index";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+
+
+<script type="text/javascript">
+    var grid;
+
+
+    $(document).ready(function () {
+
+        // Load Grid using json object
+        grid = $("#grid").grid({
+            dataKey: "id",
+            uiLibrary: "bootstrap",
+            columns: [
+                { field: "firstName", title: "FName", sortable: true, width: 20 },
+                { field: "lastName", title: "LName", sortable: true, width: 20 },
+                { field: "mobile", title: "Mobile", sortable: true, width: 25 },
+                { field: "gender", title: "Gender", sortable: true, width: 10 },
+                { field: "email", title: "Email", sortable: true, width: 35 },
+                { field: "age", title: "Age", sortable: true, width: 5 },
+                { title: "Edit", field: "Edit", width: 7, type: "icon", icon: "glyphicon-pencil", tooltip: "Edit", events: { "click": Edit } },
+                { title: "Remove", css: ".glyphicon-trash", field: "Delete", width: 7, type: "icon", icon: "glyphicon-remove", tooltip: "Delete", events: { "click": Remove } }
+            ],
+            pager: { enable: true, limit: 5, sizes: [2, 5, 10, 20, 40] }
+        })
+    });
+
+
+    // Edit
+    function Edit(e) {
+        var record = JSON.stringify(e.data.record);
+        var items = JSON.parse(record);
+        var id = items.id;
+        var url = '@Url.Action("Edit", "Clients")' + '/' + id;
+        window.location.href = url;
+    }
+
+     // Details
+    function Details(e) {
+        var record = JSON.stringify(e.data.record);
+        var items = JSON.parse(record);
+        var id = items.id;
+        var url = '@Url.Action("Details", "Clients")' + '/' + id;
+        window.location.href = url;
+    }
+
+
+    // Delete Get
+    function Remove(e) {
+        var record = JSON.stringify(e.data.record);
+        var items = JSON.parse(record);
+        var id = items.id;
+        var url = '@Url.Action("Delete", "Clients")' + '/' + id;
+        window.location.href = url;
+    }
+
+  
+
+
+
+</script>
+
+
+<h2>Clients</h2>
+
+
+<hr />
+<div class="container">
+    <p>
+        <a asp-action="Create">Create New</a>
+    </p>
+    <table id="grid" data-source="@Url.Action("GetClients")"></table>
+</div>

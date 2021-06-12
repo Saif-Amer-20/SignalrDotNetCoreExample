@@ -1,0 +1,523 @@
+﻿@model GlobalMarketsCore.DataModel.Client
+
+@{
+    ViewData["Title"] = "Details";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<script type="text/javascript">
+    var gridStatus;
+    var gridNote;
+
+
+    $(document).ready(function () {
+        // user status history
+        gridStatus = $("#gridStatus").grid({
+            dataKey: "id",
+            uiLibrary: "bootstrap",
+            columns: [
+                { field: "statusInfo", title: "Status", sortable: true, width: 20, sortable: true },
+                { field: "comment", title: "Comment", sortable: true, width: 40 },
+                { field: "addedBy", title: "By", sortable: true, width: 20 },
+                { field: "addedDate", title: "Date", sortable: true, width: 40, type:'date' },
+                { title: "Edit", field: "Edit", width: 10, type: "icon", icon: "glyphicon-pencil", tooltip: "Edit", events: { "click": AddEditStatus } },
+                { title: "Remove", css: ".glyphicon-trash", field: "Delete", width: 10, type: "icon", icon: "glyphicon-remove", tooltip: "Delete", events: { "click": RemoveStatusModal } },
+
+            ],
+            pager: { enable: true, limit: 5, sizes: [2, 5, 10, 20, 40] }
+        })
+
+        // user note history
+        gridNote = $("#gridNote").grid({
+            dataKey: "id",
+            uiLibrary: "bootstrap",
+            columns: [
+                { field: "content", title: "Note", sortable: true, width: 40, sortable: true },
+                { field: "addedDate", title: "Date", sortable: true, width: 20, type: 'date' },
+                { field: "addedBy", title: "By", sortable: true, width: 40 },
+                { title: "Edit", field: "Edit", width: 10, type: "icon", icon: "glyphicon-pencil", tooltip: "Edit", events: { "click": AddEditNote } },
+                { title: "Remove", css: ".glyphicon-trash", field: "Delete", width: 10, type: "icon", icon: "glyphicon-remove", tooltip: "Delete", events: { "click": RemoveNoteModal } },
+
+            ],
+            pager: { enable: true, limit: 5, sizes: [2, 5, 10, 20, 40] }
+        })
+
+    });
+
+    // Add Edit status
+    function AddEditStatus(e) {
+        if (e == null) {
+            $('#selectedStatusId').val('-1');
+        }
+        else {
+            var record = JSON.stringify(e.data.record);
+            var items = JSON.parse(record);
+            var id = items.id;
+            var statusId = items.statusId;
+            var statusComment = items.comment;
+            $('#selectedStatusId').val(id);
+            $('#statusId').val(statusId);
+            $('#statusComment').val(statusComment);
+        }
+
+        $('#editCreateStatusModal').modal('show');
+
+    }
+
+    function UpdateUserGroup(e) {
+        var groupId = $(e).val();
+        if (groupId == 0 || groupId == null) {
+            DisplayWarningMessage('Please select user group.');
+            return;
+        }
+
+             $.ajax({
+               type: 'POST',
+                 url: '@Url.Action("UpdateClientCategory", "Clients")',
+                 data: { categoryId: groupId, clientId: '@Model.Id' },
+            async: true,
+            success: function (data) {
+                if (data ==  'Ok') {
+                    DisplaySuccessMessage('Group is saved successfully');
+                    return;
+                }
+                else {
+                    DisplayWarningMessage(data);
+                    return;
+                }
+            },
+            error: function (data) {
+                DisplayErrorMessage('An error has occured while request processing');
+            }
+
+        });
+
+    }
+
+    function AddClientStatus(e) {
+        var clientStatus = new Object();
+        clientStatus.Id = '0';
+        clientStatus.StatusId = $(e).val();
+        if (clientStatus.StatusId == 0 || clientStatus.StatusId == null) {
+            DisplayWarningMessage('Please select correct status');
+            return;
+        }
+        clientStatus.ClientId = "@Model.Id";
+
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Action("Create","ClientStatus")',
+            data: { id: clientStatus.Id, clientStatus: clientStatus },
+            async: true,
+            success: function (data) {
+                if (data == 'Ok') {
+                    $('#selectedStatusId').val('-1');
+                    $('#editCreateStatusModal').modal('hide');
+                    DisplaySuccessMessage('Status is added successfully');
+                    SearchClientStatus();
+                }
+            },
+            error: function (data) {
+                DisplayErrorMessage('An error has occured while request processing');
+            }
+
+        });
+    }
+
+    // Save status
+    function SaveStatus() {
+        var selectedStatusId = $('#selectedStatusId').val();
+        var requestUrl = '';
+        var clientStatus = new Object();
+        if (selectedStatusId == -1) {
+            requestUrl = '@Url.Action("Create","ClientStatus")';
+            clientStatus.Id = '0';
+        }
+        else {
+            requestUrl = '@Url.Action("Edit","ClientStatus")';
+            clientStatus.Id = selectedStatusId;
+        }
+
+
+
+        clientStatus.StatusId = $('#statusId').val();
+        clientStatus.Comment = $('#statusComment').val();
+        clientStatus.ClientId = "@Model.Id";
+        if (clientStatus.StatusId == null) {
+            DisplayWarningMessage('Please select status');
+            return;
+        }
+
+           $.ajax({
+               type: 'POST',
+               url: requestUrl,
+               data: { id: clientStatus.Id, clientStatus: clientStatus},
+               async: true,
+               success: function (data) {
+                if (data == 'Ok') {
+                    $('#selectedStatusId').val('-1');
+                    $('#editCreateStatusModal').modal('hide');
+                    DisplaySuccessMessage('Status is added successfully');
+                    $('#userStatusId').val(clientStatus.StatusId);
+                    SearchClientStatus();
+                   }
+                else if (data.result != null) {
+                    $('#selectedStatusId').val('-1');
+                    $('#editCreateStatusModal').modal('hide');
+                    DisplaySuccessMessage('Status is added successfully');
+                    if (data.latest) {
+                        $('#userStatusId').val(clientStatus.StatusId);
+                    }
+
+                    SearchClientStatus();
+                }
+            },
+               error: function (data) {
+                DisplayErrorMessage('An error has occured while request processing');
+            }
+
+        });
+
+    }
+
+
+    function RemoveStatusModal(e) {
+        var record = JSON.stringify(e.data.record);
+        var items = JSON.parse(record);
+        var id = items.id;
+        $('#item-status-delete').val(id);
+        $('#delete-status-modal').modal('show');
+    }
+
+    function SearchClientStatus() {
+          gridStatus.reload(
+            {
+                clientId: '@Model.Id',
+                page: 1
+            });
+    }
+
+    function RemoveStatus() {
+
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Action("Delete", "ClientStatus")',
+            data: { id: $('#item-status-delete').val() },
+            async: true,
+            success: function (data) {
+                if (data.includes('Ok')) {
+                    $('#item-status-delete').val('-1');
+                    $('#delete-status-modal').modal('hide');
+                    DisplaySuccessMessage('Status is removed successfully');
+                    SearchClientStatus();
+                }
+            },
+            error: function (data) {
+                DisplayErrorMessage('An error has occured while request processing');
+            }
+
+        });
+
+    }
+
+
+    function AddEditNote(e) {
+        if (e == null) {
+            $('#noteId').val('-1');
+        }
+        else {
+            var record = JSON.stringify(e.data.record);
+            var items = JSON.parse(record);
+            var id = items.id;
+            var noteComment = items.content;
+            $('#noteId').val(id);
+            $('#noteComment').val(noteComment);
+        }
+
+        $('#editCreateNoteModal').modal('show');
+    }
+
+    function RemoveNoteModal(e) {
+        var record = JSON.stringify(e.data.record);
+        var items = JSON.parse(record);
+        var id = items.id;
+        $('#item-note-delete').val(id);
+        $('#delete-note-modal').modal('show');
+    }
+
+    function RemoveNote() {
+
+          $.ajax({
+            type: 'POST',
+            url: '@Url.Action("Delete", "Notes")',
+            data: { id: $('#item-note-delete').val() },
+            async: true,
+            success: function (data) {
+                if (data == 'Ok') {
+                    $('#item-note-delete').val('-1');
+                    $('#delete-note-modal').modal('hide');
+                    DisplaySuccessMessage('Note is removed successfully');
+                    SearchClientNote();
+                }
+            },
+            error: function (data) {
+                DisplayErrorMessage('An error has occured while request processing');
+            }
+
+        });
+    }
+    function SaveNote() {
+        var noteId = $('#noteId').val();
+        var requestUrl = '';
+        var note = new Object();
+        if (noteId == -1) {
+            requestUrl = '@Url.Action("Create","Notes")';
+            note.Id = '0';
+        }
+        else {
+            requestUrl = '@Url.Action("Edit","Notes")';
+            note.Id = noteId;
+        }
+
+        note.Content = $('#noteComment').val();
+        if (note.Content == null || note.Content == '') {
+            DisplayWarningMessage('Note Comment is required.');
+            return;
+        }
+        note.ClientId = "@Model.Id";
+
+           $.ajax({
+               type: 'POST',
+               url: requestUrl,
+               data: { id: note.Id, note: note},
+               async: true,
+               success: function (data) {
+                if (data == 'Ok') {
+                    $('#noteId').val('-1');
+                    $('#editCreateNoteModal').modal('hide');
+                    DisplaySuccessMessage('Note is added successfully');
+                    SearchClientNote();
+                }
+            },
+               error: function (data) {
+                DisplayErrorMessage('An error has occured while request processing');
+            }
+
+        });
+
+    }
+
+    function SearchClientNote() {
+        gridNote.reload(
+            {
+                clientId: '@Model.Id',
+                page: 1
+            });
+    }
+
+
+</script>
+
+@{
+    if (Model.Category.OwnUser == User.Identity.Name)
+    {
+        <h2>Client Status | History</h2>
+
+        <div class="container">
+            <div class="row">
+                <div class="panel panel-primary">
+                    <div class="panel-heading">
+                        <h3 class="panel-title">User Info</h3>
+                        <span class="pull-right clickable"><i class="glyphicon glyphicon-chevron-up"></i></span>
+                    </div>
+                    <div class="panel-body">
+                        <table class="table table-hover">
+                            <tr>
+                                <td>
+                                    <label>@Model.FirstName</label>
+                                </td>
+                                <td>
+                                    <label>@Model.LastName</label>
+                                </td>
+                                <td>
+                                    <label>@Model.Email</label>
+                                </td>
+                                <td>
+                                    <label>@Model.Mobile</label>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <select class="form-control" id="userGroupId" asp-items="ViewBag.CategoryId" onchange="UpdateUserGroup(this)">
+                                        <option value="0">Select Group ...</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="form-control" id="userStatusId" asp-items="ViewBag.StatusId" onchange="AddClientStatus(this)">
+                                        <option value="0">Select Status ...</option>
+                                    </select>
+                                </td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+
+
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <hr />
+        <div class="container">
+            <div id="Tabs" role="tabpanel">
+                <ul class="nav nav-tabs" role="tablist">
+                    <li class="active"><a href="#accountStatus" role="tab" data-toggle="tab">Status</a></li>
+                    <li><a href="#accountNote" role="tab" data-toggle="tab">Note</a></li>
+                </ul>
+
+                <div class="tab-content" style="padding-top: 20px">
+                    <div role="tabpanel" class="tab-pane active" id="accountStatus">
+                        <button onclick="AddEditStatus()" class="btn btn-primary">
+                            <span class="glyphicon-plus">
+                                <b>Add Status</b>
+                            </span>
+                        </button>
+                        <hr />
+                        <table id="gridStatus" data-source="@Url.Action("GetAccountStatusesHistory","ClientStatus", new { clientId = Model.Id })"></table>
+                    </div>
+                    <div role="tabpanel" class="tab-pane" id="accountNote">
+                        <button onclick="AddEditNote()" class="btn btn-primary">
+                            <span class="glyphicon-plus">
+                                <b>Add Note</b>
+                            </span>
+                        </button>
+                        <hr />
+                        <table id="gridNote" data-source="@Url.Action("GetAccountNotesHistory","Notes", new { clientId = Model.Id })"></table>
+                    </div>
+
+
+                </div>
+
+            </div>
+        </div>
+
+        <hr />
+        <div>
+            <a asp-action="Edit" asp-route-id="@Model.Id">Edit</a> |
+            <a asp-action="Index">Back to List</a>
+        </div>
+
+        <div id="editCreateStatusModal" class="modal fade" role="dialog">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                        <h4 class="modal-title">Client Status</h4>
+                        <input type="hidden" id="selectedStatusId" value="-1" />
+                    </div>
+                    <div class="modal-body">
+                        <table class="table table-hover">
+                            <tr>
+                                <td>
+                                    Status
+                                </td>
+                                <td>
+                                    <select class="form-control" id="statusId" asp-items="ViewBag.StatusId"></select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Comment
+                                </td>
+                                <td>
+                                    <textarea class="form-control" id="statusComment" name="statusComment"></textarea>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success" data-placement="top" title="Submit Saving" onclick="SaveStatus()">Save</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div id="delete-status-modal" class="modal fade" role="dialog">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                        <h4 class="modal-title">Remove Status</h4>
+                        <input type="hidden" id="item-status-delete" value="-1" />
+                    </div>
+                    <div class="modal-body">
+                        <p>Sure you want to remove the selected status ?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" onclick="RemoveStatus()" value="Delete" class="btn btn-danger" name="Delete" id="Delete" data-placement="top" title="Submit Removing">Remove</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div id="editCreateNoteModal" class="modal fade" role="dialog">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                        <h4 class="modal-title">User Note</h4>
+                        <input type="hidden" id="noteId" value="-1" />
+                    </div>
+                    <div class="modal-body">
+                        <table class="table table-hover">
+
+                            <tr>
+                                <td>
+                                    Note
+                                </td>
+                                <td>
+                                    <textarea class="form-control" id="noteComment"></textarea>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success" data-placement="top" title="Submit Saving" onclick="SaveNote()">Save</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div id="delete-note-modal" class="modal fade" role="dialog">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                        <h4 class="modal-title">Remove Note</h4>
+                        <input type="hidden" id="item-note-delete" value="-1" />
+                    </div>
+                    <div class="modal-body">
+                        <p>Sure you want to remove the selected note ?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" onclick="RemoveNote()" value="Delete" class="btn btn-danger" name="Delete" id="Delete" data-placement="top" title="Submit Removing">Remove</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-danger">
+            <strong>Sorry!</strong> You are not administrator on that client.
+        </div>
+    }
+}
+
+
+

@@ -1,0 +1,216 @@
+﻿@model GlobalMarketsCore.Models.ApplicationUser
+
+@{
+    ViewData["Title"] = "Edit";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<script type="text/javascript">
+    var gridRole;
+
+
+    $(document).ready(function () {
+       // user roles
+        gridRole = $("#gridRole").grid({
+            dataKey: "name",
+            uiLibrary: "bootstrap",
+            columns: [
+                { field: "name", title: "Role", sortable: true, width: 40, sortable: true },
+                { title: "Edit", field: "Edit", width: 10, type: "icon", icon: "glyphicon-pencil", tooltip: "Edit", events: { "click": AddEditRole } },
+                { title: "Remove", css: ".glyphicon-trash", field: "Delete", width: 10, type: "icon", icon: "glyphicon-remove", tooltip: "Delete", events: { "click": RemoveRoleModal } },
+
+            ],
+            pager: { enable: true, limit: 5, sizes: [2, 5, 10, 20, 40] }
+        })
+    });
+
+
+
+    function AddEditRole(e) {
+        $('#editCreateRoleModal').modal('show');
+    }
+    function SaveRole() {
+           $.ajax({
+            type: 'POST',
+               url: '@Url.Action("AddRole", "Manage")',
+               data: { roleId: $('#roleIdentity option:selected').text(), userId: '@Model.Id' },
+            async: true,
+            success: function (data) {
+                if (data.includes('Ok')) {
+                    $('#editCreateRoleModal').modal('hide');
+                    DisplaySuccessMessage('Role is added successfully');
+                    SearchClientRole();
+                    return;
+                }
+                else {
+                    DisplayWarningMessage(data);
+                    return;
+                }
+            },
+            error: function (data) {
+                DisplayErrorMessage('An error has occured while request processing');
+            }
+
+        });
+
+    }
+    function RemoveRoleModal(e) {
+        var record = JSON.stringify(e.data.record);
+        var items = JSON.parse(record);
+        var role = items.name;
+        $('#item-role-delete').val(role);
+        $('#delete-role-modal').modal('show');
+
+    }
+    function RemoveRole() {
+          $.ajax({
+            type: 'POST',
+            url: '@Url.Action("RemoveRole", "Manage")',
+              data: { roleId: $('#item-role-delete').val(), userId: '@Model.Id' },
+            async: true,
+            success: function (data) {
+                if (data.includes('successfully un assigned from role')) {
+                    $('#delete-role-modal').modal('hide');
+                    DisplaySuccessMessage('Role is removed successfully');
+                    SearchClientRole();
+                    return;
+                }
+                else {
+                    DisplayWarningMessage(data);
+                    return;
+                }
+            },
+            error: function (data) {
+                DisplayErrorMessage('An error has occured while request processing');
+            }
+
+        });
+
+    }
+
+    function SearchClientRole() {
+        gridRole.reload(
+            {
+                userId: '@Model.Id',
+                page: 1
+            });
+    }
+
+</script>
+<a asp-action="ManageUsers" asp-controller="Manage">Back to list</a>
+<h2>Edit User</h2>
+
+<div class="container">
+    <div class="row">
+        <div class="panel panel-primary">
+            <div class="panel-heading">
+                <h3 class="panel-title">User Info</h3>
+                <span class="pull-right clickable"><i class="glyphicon glyphicon-chevron-up"></i></span>
+            </div>
+            <div class="panel-body">
+                <table class="table table-hover">
+                    <tr>
+                        <td>
+                            User Name
+                        </td>
+                        <td>
+                            @Model.UserName
+                        </td>
+                        <td>
+                            Email
+                        </td>
+                        <td>
+                            @Model.Email
+                        </td>
+                    </tr>
+
+
+
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<hr />
+<div class="container">
+    <div id="Tabs" role="tabpanel">
+        <ul class="nav nav-tabs" role="tablist">
+
+            <li class="active"><a href="#accountRole" role="tab" data-toggle="tab">Role</a></li>
+        </ul>
+
+        <div class="tab-content" style="padding-top: 20px">
+
+            <div id="accountRole" class="tab-pane active" role="tabpanel">
+                <button onclick="AddEditRole()" class="btn btn-primary">
+                    <span class="glyphicon-plus">
+                        <b>Add Role</b>
+                    </span>
+                </button>
+                <hr />
+                <table id="gridRole" data-source="@Url.Action("GetAccountRolesHistory","Manage", new { userId = Model.Id })"></table>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<hr />
+
+
+
+
+
+
+
+
+
+
+<div id="editCreateRoleModal" class="modal fade" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">User Role</h4>
+                <input type="hidden" id="roleId" value="-1" />
+            </div>
+            <div class="modal-body">
+                <table class="table table-hover">
+
+                    <tr>
+                        <td>
+                            Role
+                        </td>
+                        <td>
+                            <select id="roleIdentity" class="form-control" asp-items="ViewBag.Role"></select>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-success" data-placement="top" title="Submit Saving" onclick="SaveRole()">Save</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+<div id="delete-role-modal" class="modal fade" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Remove Role</h4>
+                <input type="hidden" id="item-role-delete" value="-1" />
+            </div>
+            <div class="modal-body">
+                <p>Sure you want to remove the selected role ?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" onclick="RemoveRole()" value="Delete" class="btn btn-danger" name="Delete" id="Delete" data-placement="top" title="Submit Removing">Remove</button>
+            </div>
+        </div>
+
+    </div>
+</div>
